@@ -1,55 +1,67 @@
-'''hardware_test_intelrealsense.py
-
-This example demonstrates how to read and display depth & RGB image data
-from the Intel Realsense camera.
 '''
+This File utlizes the RGB IntelRealSense for object detection and response to traffic signals and signs 
+'''
+#imports
 import time
 import cv2
+import ultralytics.engine
+import ultralytics.engine.results
 from pal.products.qcar import QCarRealSense
+import ultralytics
 from ultralytics import YOLO
-import numpy as np
-# from QCAR_Competition_Controls import SpeedController
-# Load YOLO model
+import tensorflow as tf
+import torch
+from pal.products.qcar import QCar
+#opening midel and initializing variables
 model = YOLO('F:\\objdetqcarcomp\\best.pt')
-
 # Initial Setup
-runTime = 120.0 # same runtime as the Vehicle Control Script
-
+runTime = 120.0  # Same runtime as the Vehicle Control Script
+qcar = QCar(readMode=1, frequency=500)
+#loop for camera interfacing and live detection
 with QCarRealSense(mode='RGB, Depth') as myCam:
     t0 = time.time()
     while time.time() - t0 < runTime:
+        start_time = time.time()
+        # Read RGB frame
         myCam.read_RGB()
         frame = myCam.imageBufferRGB
-
         # Object detection
-        # results = model.predict(frame, show=True, conf=.25)
-        results = model.predict(frame, conf=.25)
-        # if model.predict(frame) == '1 Red_light' or '1 Stop_sign':
-            # SpeedController.stop_car()
-        # # Draw bounding boxes and labels
-        # for result in results:
-        #     xmin, ymin, xmax, ymax, conf, cls = result
-        #     label = model.names[int(cls)]
-        #     color = (0, 255, 0)  # green color for bounding boxes
-        #     cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), color, 2)
-        #     cv2.putText(frame, label, (int(xmin), int(ymin) - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        # cv2.imshow('Object Detection', frame)
-        cv2.waitKey(100)
+        # model.predict(frame, show = True, save_dir=False, conf=.2)  # Lowering confidence threshold 
+        results = model.predict(frame, show=True, conf=.2)
+        class_names = results[0].names
+        boxes = results[0].boxes
+        det_cls = results[0].boxes.cls
+        if torch.equal(det_cls, torch.tensor([0.0])) or torch.equal(det_cls, torch.tensor([2.0])):
+            qcar.write(0,0)    
+        # print(det_cls) for debugging data type of det_cls
+        cv2.waitKey(10)
+
+# Optimized code - needs tweaking
 # import time
 # import cv2
-# from pal.products.qcar import QCarRealSense
+# from pal.products.qcar import QCarRealSense, QCar
 # from ultralytics import YOLO
+# import torch
+# # Load YOLO model with smaller size and lower confidence threshold
 # model = YOLO('F:\\objdetqcarcomp\\best.pt')
+
 # # Initial Setup
-# runTime = 120.0 # seconds
+# runTime = 120.0  # Same runtime as the Vehicle Control Script
+# qcar = QCar(readMode=1, frequency=500)
 
 # with QCarRealSense(mode='RGB, Depth') as myCam:
 #     t0 = time.time()
+#     # Preload the model outside the loop
 #     while time.time() - t0 < runTime:
+#         start_time = time.time()
+#         # Read RGB frame
 #         myCam.read_RGB()
-#         cv2.imshow('My RGB', myCam.imageBufferRGB)
-
-#         # myCam.read_depth()
-#         # cv2.imshow('My Depth', myCam.imageBufferDepthPX)
-
-#         cv2.waitKey(100)
+#         frame = myCam.imageBufferRGB
+#         # Object detection
+#         results = model.predict(frame, show=True, conf=0.2)
+#         det_cls = results[0].boxes.cls
+#         if torch.equal(det_cls, torch.tensor([0.0])) or torch.equal(det_cls, torch.tensor([2.0])):  # Check if the detected class is 0 or 2
+#             qcar.write(0, 0)
+#         else:
+#             pass
+#         cv2.waitKey(1)
