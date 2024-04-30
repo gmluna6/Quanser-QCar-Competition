@@ -65,8 +65,8 @@ from hal.utilities.image_processing import ImageProcessing
 # - tf: experiment duration in seconds.
 # - startDelay: delay to give filters time to settle in seconds.
 # - controllerUpdateRate: control update rate in Hz. Shouldn't exceed 500
-tf = 120
-startDelay = 2
+tf = 600
+startDelay = 10
 controllerUpdateRate = 500
 
 # camera timing parameters 
@@ -78,7 +78,7 @@ simulationTime = tf
 # - v_ref: desired velocity in m/s
 # - K_p: proportional gain for speed controller
 # - K_i: integral gain for speed controller
-v_ref = 1.05
+v_ref = .75
 K_p = 0.3
 K_i = 1
 
@@ -88,7 +88,7 @@ K_i = 1
 # - nodeSequence: list of nodes from roadmap. Used for trajectory generation.
 enableSteeringControl = True #False
 K_stanley = 1.5
-nodeSequence = [2, 4, 14, 20, 22, 10, 2]#[2, 20, 10, 2]#[0, 20, 0]
+nodeSequence = [10, 2, 4, 14, 20, 22, 10]#[2, 20, 10, 2]#[0, 20, 0]
 
 import threading
 
@@ -121,6 +121,7 @@ def sig_handler(*args):
     KILL_THREAD = True
 signal.signal(signal.SIGINT, sig_handler)
 #endregion
+
 class SpeedController:
 
     def __init__(self, kp=0, ki=0):
@@ -137,9 +138,7 @@ class SpeedController:
         e = v_ref - v
         self.ei += dt*e
  
-        # if results == '1: Red_light' or '1: Stop_sign':
-        #     return 0
-        # else:    
+
         return np.clip(
             self.kp*e + self.ki*self.ei,
             -self.maxThrottle,
@@ -203,6 +202,7 @@ class SteeringController:
         self.filtered_steering_angle += self.filter_coeff * (steering_angle - self.filtered_steering_angle)
         
         return np.clip(self.filtered_steering_angle, -self.maxSteeringAngle, self.maxSteeringAngle)   
+
     
 def controlLoop():
     #region controlLoop setup
