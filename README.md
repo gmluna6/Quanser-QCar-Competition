@@ -4,7 +4,7 @@ This repository contains the UIW QCARdinals code for the Quanser Self Driving Ca
 
 Quick rundown of files inside: 
 
-1.
+1. QCAR_Competition_Controls.py
 
 2.
 
