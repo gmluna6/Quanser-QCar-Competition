@@ -33,6 +33,8 @@ import math
 import struct
 import cv2
 import random
+from filelock import Timeout, FileLock
+import json
 
 # environment objects
 
@@ -61,12 +63,18 @@ from pal.utilities.math import *
 from pal.utilities.gamepad import LogitechF710
 from hal.utilities.image_processing import ImageProcessing
 
+# object detection imports
+
+import ultralytics
+from ultralytics import YOLO
+import torch
+
 # ===== Timing Parameters
 # - tf: experiment duration in seconds.
 # - startDelay: delay to give filters time to settle in seconds.
 # - controllerUpdateRate: control update rate in Hz. Shouldn't exceed 500
 tf = 600
-startDelay = 10
+startDelay = 5
 controllerUpdateRate = 500
 
 # camera timing parameters 
@@ -79,7 +87,7 @@ simulationTime = tf
 # - K_p: proportional gain for speed controller
 # - K_i: integral gain for speed controller
 v_ref = .75
-K_p = 0.3
+K_p = 0.5
 K_i = 1
 
 # ===== Steering Controller Parameters
@@ -87,8 +95,8 @@ K_i = 1
 # - K_stanley: K gain for stanley controller
 # - nodeSequence: list of nodes from roadmap. Used for trajectory generation.
 enableSteeringControl = True #False
-K_stanley = 1.5
-nodeSequence = [10, 2, 4, 14, 20, 22, 10]#[2, 20, 10, 2]#[0, 20, 0]
+K_stanley = 0.9
+nodeSequence = [10, 2, 4, 14, 20, 22, 10]   # [2, 20, 10, 2] # [0, 20, 0]
 
 import threading
 
@@ -132,6 +140,8 @@ class SpeedController:
 
         self.ei = 0
 
+    def reset(self):
+        self.ei = 0
 
     # ==============  SECTION A -  Speed Control  ====================
     def update(self, v, v_ref, dt):
@@ -156,11 +166,7 @@ class SpeedController:
         '''
         return 0
 
-
-
-    
 class SteeringController:
-
     def __init__(self, waypoints, k=K_stanley, cyclic=True, filter_coeff=0.25):
         self.maxSteeringAngle = np.pi / 5
         self.wp = waypoints
@@ -173,6 +179,10 @@ class SteeringController:
         self.left_bias = np.pi / 45
         self.filter_coeff = filter_coeff
         self.filtered_steering_angle = 0
+        self.prev_steering_angle = 0  # Store previous steering angle for filtering
+
+    def reset(self):
+        self.prev_steering_angle = 0
 
     def update(self, p, th, speed):
         wp_1 = self.wp[:, np.mod(self.wpi, self.N - 1)]
@@ -203,7 +213,20 @@ class SteeringController:
         
         return np.clip(self.filtered_steering_angle, -self.maxSteeringAngle, self.maxSteeringAngle)   
 
+def read_control_state():
+    lock = FileLock("control_state.json.lock")
+    try:
+        with lock.acquire(timeout=10):  # Wait up to 10 seconds
+            with open('control_state.json', 'r') as file:
+                data = json.load(file)
+                return data['allow_prediction']
+    except Timeout:
+        return True  # Default to True if the lock could not be acquired
+    except FileNotFoundError:
+        return True  # Default to True if the file does not exist
     
+    
+#NEED CONTROL_STATE.JSON FILE IN FOLDER
 def controlLoop():
     #region controlLoop setup
     global KILL_THREAD
@@ -234,7 +257,7 @@ def controlLoop():
     else:
         gps = memoryview(b'')
     #endregion
-
+    
     with qcar, gps:
         t0 = time.time()
         t=0
@@ -245,7 +268,7 @@ def controlLoop():
             dt = t-tp
             #endregion
 
-            #region : Read from sensors and update state estimates
+            #region : Read from sensors and update state estimates               
             qcar.read()
             if enableSteeringControl:
                 if gps.readGPS():
@@ -282,19 +305,27 @@ def controlLoop():
                 delta = 0
             else:
                 #region : Speed controller update
-                u = speedController.update(v, v_ref, dt)
+                # u = speedController.update(v, v_ref, dt)
+                u = 0.05 #0.08514702182585335
+                # u = 0.09
                 #endregion
-
+                # print(delta)
+                if delta < 1:
+                    u = 0.095
+                else: 
+                    u = 0.08                     
+                
                 #region : Steering controller update
                 if enableSteeringControl:
                     delta = steeringController.update(p, th, v)
                 else:
                     delta = 0
+    
                 #endregion
+                qcar.write(u, delta)                    
 
-            qcar.write(u, delta)
             #endregion
-
+          
             #region : Update Scopes
             count += 1
             if count >= countMax and t > startDelay:
