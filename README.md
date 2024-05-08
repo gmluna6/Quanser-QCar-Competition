@@ -22,4 +22,4 @@ Ensure that the directory includes the following files: 'hal', 'pal', and 'qvl' 
 Run the files in the following order:
 - 'QCAR_Competition_Controls.py' -  has a 5 second delay in order to allow time for each file to be executed
 - 'Traffic_Lights_Competition.py' to generate the lights into the competition world
-- 'Traffic_Sign_Detection' to perform the detect and react to traffic signs 
+- 'Traffic_Sign_Detection' to perform detection and react to traffic signs 
