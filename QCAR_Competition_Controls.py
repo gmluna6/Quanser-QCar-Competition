@@ -1,79 +1,35 @@
-# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-
-#region : File Description and Imports
-
 """
-vehicle_control.py
-
-Skills acivity code for vehicle control lab guide.
-Students will implement a vehicle speed and steering controller.
-Please review Lab Guide - vehicle control PDF
+Team QCardinals 
+modified version of provided Vehicle_Control.py to work with traffic sign detection and competition setup
 """
-import os
 import signal
 import numpy as np
 from threading import Thread
 import time
 import cv2
 import pyqtgraph as pg
-
 from pal.products.qcar import QCar, QCarGPS, IS_PHYSICAL_QCAR
 from pal.utilities.scope import MultiScope
 from pal.utilities.math import wrap_to_pi
 from hal.products.qcar import QCarEKF
 from hal.products.mats import SDCSRoadMap
 import pal.resources.images as images
-
 # Setup competition imports 
-
-import random
-import sys
 import time
-import math
-import struct
 import cv2
-import random
-from filelock import Timeout, FileLock
-import json
-
 # environment objects
-
-from qvl.qlabs import QuanserInteractiveLabs
-from qvl.qcar import QLabsQCar
-from qvl.free_camera import QLabsFreeCamera
 from qvl.real_time import QLabsRealTime
-from qvl.basic_shape import QLabsBasicShape
-from qvl.system import QLabsSystem
-from qvl.walls import QLabsWalls
-from qvl.flooring import QLabsFlooring
-from qvl.stop_sign import QLabsStopSign
-from qvl.crosswalk import QLabsCrosswalk
-import pal.resources.rtmodels as rtmodels
-
-# traffic light imports 
-
-from quanser.communications import Stream
-from qvl.qlabs import QuanserInteractiveLabs
-from qvl.traffic_light import QLabsTrafficLight
-
+import pal.resources.rtmodels as rtmodels 
 # qcar camera imports
-
-from pal.products.qcar import QCar,QCarCameras
+from pal.products.qcar import QCar
 from pal.utilities.math import *
-from pal.utilities.gamepad import LogitechF710
-from hal.utilities.image_processing import ImageProcessing
 
-# object detection imports
-
-import ultralytics
-from ultralytics import YOLO
-import torch
-
+# Kept parameters for expirament setup
 # ===== Timing Parameters
 # - tf: experiment duration in seconds.
 # - startDelay: delay to give filters time to settle in seconds.
 # - controllerUpdateRate: control update rate in Hz. Shouldn't exceed 500
-tf = 600
+tf = 30
 startDelay = 5
 controllerUpdateRate = 500
 
@@ -95,10 +51,9 @@ K_i = 1
 # - K_stanley: K gain for stanley controller
 # - nodeSequence: list of nodes from roadmap. Used for trajectory generation.
 enableSteeringControl = True #False
-K_stanley = 0.9
+K_stanley = .7
 nodeSequence = [10, 2, 4, 14, 20, 22, 10]   # [2, 20, 10, 2] # [0, 20, 0]
 
-import threading
 
 #function to terminate the real time model running
 def terminate():
@@ -117,7 +72,8 @@ if not IS_PHYSICAL_QCAR:
     import qlabs_setup
     from Setup_Competition import setup
     setup(
-        initialPosition=[initialPose[0], initialPose[1], 0],
+        # setup start position for the parallel park portion 
+        initialPosition=[-1.23, -0.75, 0],
         initialOrientation=[0, 0, initialPose[2]]
     )
 
@@ -167,8 +123,8 @@ class SpeedController:
         return 0
 
 class SteeringController:
-    def __init__(self, waypoints, k=K_stanley, cyclic=True, filter_coeff=0.25):
-        self.maxSteeringAngle = np.pi / 5
+    def __init__(self, waypoints, k=K_stanley, cyclic=True, filter_coeff=1):
+        self.maxSteeringAngle = np.pi / 9
         self.wp = waypoints
         self.N = len(waypoints[0, :])
         self.wpi = 0
@@ -176,7 +132,7 @@ class SteeringController:
         self.cyclic = cyclic
         self.p_ref = (0, 0)
         self.th_ref = 0
-        self.left_bias = np.pi / 45
+        self.left_bias = np.pi / 70
         self.filter_coeff = filter_coeff
         self.filtered_steering_angle = 0
         self.prev_steering_angle = 0  # Store previous steering angle for filtering
@@ -207,26 +163,14 @@ class SteeringController:
         psi = wrap_to_pi(tangent - th)
 
         steering_angle = psi + np.arctan2(self.k * ect, speed) + self.left_bias
-
         # Apply low-pass filter
         self.filtered_steering_angle += self.filter_coeff * (steering_angle - self.filtered_steering_angle)
         
         return np.clip(self.filtered_steering_angle, -self.maxSteeringAngle, self.maxSteeringAngle)   
 
-def read_control_state():
-    lock = FileLock("control_state.json.lock")
-    try:
-        with lock.acquire(timeout=10):  # Wait up to 10 seconds
-            with open('control_state.json', 'r') as file:
-                data = json.load(file)
-                return data['allow_prediction']
-    except Timeout:
-        return True  # Default to True if the lock could not be acquired
-    except FileNotFoundError:
-        return True  # Default to True if the file does not exist
     
     
-#NEED CONTROL_STATE.JSON FILE IN FOLDER
+# Edited speed value 'u' to be a fixed value, this prevents the car from overwriting commands with detection on
 def controlLoop():
     #region controlLoop setup
     global KILL_THREAD
@@ -305,15 +249,15 @@ def controlLoop():
                 delta = 0
             else:
                 #region : Speed controller update
-                # u = speedController.update(v, v_ref, dt)
-                u = 0.05 #0.08514702182585335
-                # u = 0.09
+                # removed line  - u = speedController.update(v, v_ref, dt) b/c fixed speed works better with the traffic
+                # sign det
+                u = 0.05
                 #endregion
-                # print(delta)
+                #  debugging delta value print(delta) created conitional for steering angle based on delta
                 if delta < 1:
-                    u = 0.095
+                    u = 0.125
                 else: 
-                    u = 0.08                     
+                    u = 0.075                     
                 
                 #region : Steering controller update
                 if enableSteeringControl:
