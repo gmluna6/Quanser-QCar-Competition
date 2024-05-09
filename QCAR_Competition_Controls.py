@@ -29,7 +29,7 @@ from pal.utilities.math import *
 # - tf: experiment duration in seconds.
 # - startDelay: delay to give filters time to settle in seconds.
 # - controllerUpdateRate: control update rate in Hz. Shouldn't exceed 500
-tf = 30
+tf = 300
 startDelay = 5
 controllerUpdateRate = 500
 
@@ -51,7 +51,7 @@ K_i = 1
 # - K_stanley: K gain for stanley controller
 # - nodeSequence: list of nodes from roadmap. Used for trajectory generation.
 enableSteeringControl = True #False
-K_stanley = .7
+K_stanley = .75
 nodeSequence = [10, 2, 4, 14, 20, 22, 10]   # [2, 20, 10, 2] # [0, 20, 0]
 
 
@@ -123,8 +123,8 @@ class SpeedController:
         return 0
 
 class SteeringController:
-    def __init__(self, waypoints, k=K_stanley, cyclic=True, filter_coeff=1):
-        self.maxSteeringAngle = np.pi / 9
+    def __init__(self, waypoints, k=K_stanley, cyclic=True, filter_coeff=1.2):
+        self.maxSteeringAngle = np.pi / 7.5
         self.wp = waypoints
         self.N = len(waypoints[0, :])
         self.wpi = 0
@@ -132,7 +132,7 @@ class SteeringController:
         self.cyclic = cyclic
         self.p_ref = (0, 0)
         self.th_ref = 0
-        self.left_bias = np.pi / 70
+        self.left_bias = np.pi/70
         self.filter_coeff = filter_coeff
         self.filtered_steering_angle = 0
         self.prev_steering_angle = 0  # Store previous steering angle for filtering
@@ -140,9 +140,40 @@ class SteeringController:
     def reset(self):
         self.prev_steering_angle = 0
 
+    # def update(self, p, th, speed):
+    #     wp_1 = self.wp[:, np.mod(self.wpi, self.N - 1)]
+    #     wp_2 = self.wp[:, np.mod(self.wpi + 1, self.N - 1)]
+    #     v = wp_2 - wp_1
+    #     v_mag = np.linalg.norm(v)
+    #     if v_mag == 0:
+    #         return 0
+
+    #     v_uv = v / v_mag
+    #     tangent = np.arctan2(v_uv[1], v_uv[0])
+    #     s = np.dot(p - wp_1, v_uv)
+
+    #     if s >= v_mag:
+    #         if self.cyclic or self.wpi < self.N - 2:
+    #             self.wpi += 1
+
+    #     ep = wp_1 + v_uv * s
+    #     ct = ep - p
+    #     dir = wrap_to_pi(np.arctan2(ct[1], ct[0]) - tangent)
+    #     ect = np.linalg.norm(ct) * np.sign(dir)
+    #     psi = wrap_to_pi(tangent - th)
+
+    #     steering_angle = psi + np.arctan2(self.k * ect, speed) + self.left_bias
+    #     # Apply low-pass filter
+    #     self.filtered_steering_angle += self.filter_coeff * (steering_angle - self.filtered_steering_angle)
+        
+    #     return np.clip(self.filtered_steering_angle, -self.maxSteeringAngle, self.maxSteeringAngle)   
     def update(self, p, th, speed):
-        wp_1 = self.wp[:, np.mod(self.wpi, self.N - 1)]
-        wp_2 = self.wp[:, np.mod(self.wpi + 1, self.N - 1)]
+        # Offset the waypoint coordinates to the left by a certain distance
+        offset_distance = 0.0125  # Adjust this value as needed
+        left_offset = np.array([-offset_distance * np.sin(th), offset_distance * np.cos(th)])
+
+        wp_1 = self.wp[:, np.mod(self.wpi, self.N - 1)] + left_offset
+        wp_2 = self.wp[:, np.mod(self.wpi + 1, self.N - 1)] + left_offset
         v = wp_2 - wp_1
         v_mag = np.linalg.norm(v)
         if v_mag == 0:
@@ -163,10 +194,16 @@ class SteeringController:
         psi = wrap_to_pi(tangent - th)
 
         steering_angle = psi + np.arctan2(self.k * ect, speed) + self.left_bias
+        
+        # if steering_angle > 0:
+        #     steering_angle = psi + np.arctan2(self.k * ect, speed) 
+        # elif steering_angle < 0:
+        #     pass
+        # print(steering_angle)
         # Apply low-pass filter
         self.filtered_steering_angle += self.filter_coeff * (steering_angle - self.filtered_steering_angle)
         
-        return np.clip(self.filtered_steering_angle, -self.maxSteeringAngle, self.maxSteeringAngle)   
+        return np.clip(self.filtered_steering_angle, -self.maxSteeringAngle, self.maxSteeringAngle)
 
     
     
@@ -253,11 +290,13 @@ def controlLoop():
                 # sign det
                 u = 0.05
                 #endregion
+                print(delta)
                 #  debugging delta value print(delta) created conitional for steering angle based on delta
-                if delta < 1:
-                    u = 0.125
+
+                if delta < 0.04:
+                    u = 0.14
                 else: 
-                    u = 0.075                     
+                    u = 0.0685                    
                 
                 #region : Steering controller update
                 if enableSteeringControl:
@@ -461,6 +500,7 @@ if __name__ == '__main__':
         KILL_THREAD = True
     #endregion
     if not IS_PHYSICAL_QCAR:
+        
         qlabs_setup.terminate()
 
     input('Experiment complete. Press any key to exit...')
