@@ -2,16 +2,6 @@
 
 This repository contains the UIW QCARdinals code for the Quanser Self Driving Car Competition hosted at ACC 2024
 
-Quick rundown of files inside: 
-
-1. QCAR_Competition_Controls.py
-
-2.
-
-3.
-
-4.
-
 *Installation Procedure* 
 
 First run the command 'pip install requirements.txt' in terminal to install all required packages for software contained in this repo
