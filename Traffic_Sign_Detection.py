@@ -1,6 +1,4 @@
-'''
-QCardinals
-Traffic_Sign_Detection.py
+'''Traffic_Sign_Detection.py
 This script holds the camera loop for object detection, when running if sign detected car will react
 '''
 #imports
@@ -87,7 +85,7 @@ with cameras:
         frames_since_last_stop_stop += 1  # Increment frame counter regardless of detection
         
         # if torch.equal(det_cls, torch.tensor([0.0])) and has_something:
-        if torch.equal(det_cls, torch.tensor([0.0])) and int(nump[0,3]) > 23:
+        if torch.equal(det_cls, torch.tensor([0.0])) and int(nump[0,3]) > 22:
             det_counter_red +=1
             # Ensure 200 frames have passed since last stop
             if nump[0,1] > 100 and nump[0,0] > 250 : #and det_counter_red >= 10:
@@ -98,5 +96,3 @@ with cameras:
                         # loop to write stop to car for red light
                         while time.time() - t1 < 2.5: #Stop 3 seconds
                             myCar.write(0,0,LEDs)
-
-        
