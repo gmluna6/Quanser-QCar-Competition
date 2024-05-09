@@ -1,4 +1,5 @@
-'''Traffic_Sign_Detection.py
+'''
+Traffic_Sign_Detection.py
 This script holds the camera loop for object detection, when running if sign detected car will react
 '''
 #imports
