@@ -10,6 +10,6 @@ Ensure that the directory you choose to download and run the code in includes th
 *Run Order*
 
 Run the files in the following order:
-- 'QCAR_Competition_Controls.py' -  has a 5 second delay in order to allow time for each file to be executed
+- 'QCAR_Competition_Controls.py' will run basic vehicle control, has a 5 second delay in order to allow time for the user to run each file
 - 'Traffic_Lights_Competition.py' to generate the lights into the competition world
 - 'Traffic_Sign_Detection' to perform detection and react to traffic signs 
