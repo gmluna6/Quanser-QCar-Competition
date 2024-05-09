@@ -5,7 +5,7 @@ This repository contains the UIW QCARdinals code for the Quanser Self Driving Ca
 *Installation Procedure* 
 
 First run the command 'pip install requirements.txt' in terminal to install all required packages for software contained in this repository.
-Ensure that the directory includes the following files: 'hal', 'pal', and 'qvl' which contain vital quanser definitions for other functions referenced in the code 
+Ensure that the directory you choose to download and run the code in includes the following folders or libraries: 'hal', 'pal', and 'qvl' which contain vital quanser definitions for other functions referenced in the code. 
 
 *Run Order*
 
