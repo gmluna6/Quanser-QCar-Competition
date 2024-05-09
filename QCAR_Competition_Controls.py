@@ -29,7 +29,7 @@ from pal.utilities.math import *
 # - tf: experiment duration in seconds.
 # - startDelay: delay to give filters time to settle in seconds.
 # - controllerUpdateRate: control update rate in Hz. Shouldn't exceed 500
-tf = 300
+tf = 37
 startDelay = 5
 controllerUpdateRate = 500
 
